@@ -662,32 +662,22 @@ function initFilters() {
 }
 
 function systemBadgeClass(type) {
-  const t = (type || '').toUpperCase();
-  if (t.includes('5GDHC')) return 'badge-5gdhc';
-  if (t.includes('4GDHC')) return 'badge-4gdhc';
-  if (t.includes('GSHP')) return 'badge-gshp';
-  if (t.includes('GDH'))  return 'badge-gdh';
-  return 'badge-other';
-}
-
-function systemBadgeLabel(type) {
-  const t = (type || '').toUpperCase();
-  if (t.includes('5GDHC') && t.includes('4GDHC')) return 'GDH/4G&5G';
-  if (t.includes('5GDHC')) return '5GDHC';
-  if (t.includes('4GDHC')) return '4GDHC';
-  if (t.includes('GSHP'))  return 'GSHP';
-  if (t.includes('GDH'))   return 'GDH';
-  return type || '—';
+  switch (type) {
+    case '5GDHC': return 'badge-5gdhc';
+    case '4GDHC': return 'badge-4gdhc';
+    case 'GDH':   return 'badge-gdh';
+    case 'GSHP':  return 'badge-gshp';
+    default:      return 'badge-unknown';
+  }
 }
 
 function statusBadgeClass(status) {
-  const s = (status || '').toLowerCase();
-  if (s.includes('operating'))    return 'badge-operating';
-  if (s.includes('design'))       return 'badge-design';
-  if (s.includes('construction')) return 'badge-design';
-  if (s.includes('decommission')) return 'badge-decom';
-  if (s === 'unknown' || s === '') return 'badge-unknown';
-  return 'badge-other';
+  switch (status) {
+    case 'Operating':     return 'badge-operating';
+    case 'Design Phase':  return 'badge-design';
+    case 'Decommissioned': return 'badge-decom';
+    default:              return 'badge-unknown';
+  }
 }
 
 function setView(mode) {
@@ -732,7 +722,7 @@ function renderTable() {
         <td class="wrap">${r['Project Name'] || '—'}</td>
         <td class="muted">${r['City'] || '—'}</td>
         <td class="mono" style="font-weight:500;color:var(--accent)">${r['State'] || '—'}</td>
-        <td><span class="badge ${systemBadgeClass(r['System Type'])}">${systemBadgeLabel(r['System Type'])}</span></td>
+        <td><span class="badge ${systemBadgeClass(r['System Type'])}">${r['System Type'] || '—'}</span></td>
         <td><span class="badge ${statusBadgeClass(r['Status'])}">${r['Status'] || '—'}</span></td>
         <td class="muted">${r['Site Type'] || '—'}</td>
         <td>
@@ -771,7 +761,7 @@ function renderCards() {
           <div class="card-name">${r['Project Name'] || '—'}</div>
           <div class="card-location">${loc}</div>
         </div>
-        <span class="badge ${systemBadgeClass(r['System Type'])}">${systemBadgeLabel(r['System Type'])}</span>
+        <span class="badge ${systemBadgeClass(r['System Type'])}">${r['System Type'] || '—'}</span>
       </div>
       <hr class="card-divider"/>
       <div class="card-row">
@@ -897,6 +887,61 @@ function parseLine(line) {
   return result;
 }
 
+// ── Label normalization (applied at parse time so filters/charts see clean values)
+function normalizeSystemType(raw) {
+  const t = (raw || '').trim().toUpperCase();
+  if (!t || t === 'UNKNOWN') return 'Unknown';
+  if (t.startsWith('5GDHC')) return '5GDHC';
+  if (t.startsWith('4GDHC')) return '4GDHC';
+  if (t.includes('GDH') || t.includes('COMBINED') || t.includes('NETWORKED')) return 'GDH';
+  if (t.includes('GSHP') || t.includes('WSHP')) return 'GSHP';
+  return raw.trim();
+}
+
+function normalizeStatus(raw) {
+  const s = (raw || '').trim().toLowerCase();
+  if (!s || s === '?' || s === 'tbd') return 'Unknown';
+  if (s.startsWith('operating')) return 'Operating';
+  if (s.startsWith('design')) return 'Design Phase';
+  if (s.startsWith('decomm')) return 'Decommissioned';
+  if (s === 'unknown') return 'Unknown';
+  return raw.trim();
+}
+
+function normalizeSiteType(raw) {
+  const s = (raw || '').trim().toLowerCase().replace(/\.$/, '').trim();
+  if (!s || s === 'unknown' || s === 'tbd' || s === 'n/a') return 'Unknown';
+  if (s.includes('college') || s.includes('university') || (s.includes('campus') && !s.includes('corporate'))) return 'College Campus';
+  if (s.includes('k-12') || s === 'school' || s.includes('school facility')) return 'K–12 School';
+  if (s.includes('military') || s.includes('air force') || s.includes('navy') || s.includes('marine corps')) return 'Military';
+  if (s.includes('medical') || s.includes('health') || s.includes('hospital')) return 'Medical Facility';
+  if (s.includes('senior') || s.includes('assisted living')) return 'Senior Living';
+  if (s.includes('apartment') || s === 'residential' || s.includes('residential building') || s.includes('residential community') || s.includes('housing') || s.includes('public housing')) return 'Residential';
+  if (s === 'community' || s.startsWith('community,') || s === 'community center') return 'Community';
+  if (s.includes('government') || s.includes('municipal building') || s.includes('municipal buildings') || s.includes('city hall') || s.includes('fire stat') || s.includes('government building')) return 'Government / Municipal';
+  if (s.includes('mixed')) return 'Mixed Use';
+  if (s.includes('church') || s.includes('cathedral') || s.includes('religious')) return 'Religious';
+  if (s.includes('research') || s.includes('laboratory')) return 'Research Facility';
+  if (s.includes('farm') || s.includes('agricultural')) return 'Agricultural';
+  if (s.includes('office') || s.includes('commercial') || s.includes('commerical') || s.includes('manufacturing') || s.includes('corporate') || s.includes('library') || s.includes('bank') || s.includes('inn') || s.includes('industrial')) return 'Commercial';
+  return raw.trim().replace(/\.$/, '').trim();
+}
+
+function normalizeOwnership(raw) {
+  const s = (raw || '').trim().toLowerCase();
+  if (!s || s === '?' || s === 'tbd' || s === 'unknown') return 'Unknown';
+  if (s.includes('public-private') || s.includes('public private')) return 'Public–Private Partnership';
+  if (s.includes('university') || s.includes('college') || s.includes('campus owned')) return 'University / College';
+  if (s.includes('co-op') || s.includes('cooperative') || (s.includes('municipality owned') && s.includes('leased'))) return 'Cooperative';
+  if (s.includes('community owned') || s === 'community') return 'Community';
+  if (s.includes('public institution')) return 'Public Institution';
+  if (s.includes('thermal utility') || s.includes('municipal utility') || (s.includes('utility') && !s.includes('public utility') && !s.includes('private utility'))) return 'Utility';
+  if (s.includes('public utility') || s.includes('public utilities')) return 'Public Utility';
+  if (s === 'municipal' || s.startsWith('municipality') || s.startsWith('municipal') || s.includes('town owned') || s === 'municipal?') return 'Municipal';
+  if (s.includes('private') || s.includes('privately') || s.includes('campus owned')) return 'Private';
+  return raw.trim().replace(/\.$/, '').trim();
+}
+
 // Splits CSV text into rows while respecting newlines inside quoted fields
 function splitCSVRows(text) {
   const rows = [];
@@ -932,6 +977,10 @@ function parseCSV(text) {
     const vals = parseLine(row);
     const obj = {};
     validIdx.forEach(i => { obj[headers[i]] = (vals[i] || '').trim(); });
+    obj['System Type']    = normalizeSystemType(obj['System Type']);
+    obj['Status']         = normalizeStatus(obj['Status']);
+    obj['Site Type']      = normalizeSiteType(obj['Site Type']);
+    obj['Ownership Model'] = normalizeOwnership(obj['Ownership Model']);
     return obj;
   });
 }
