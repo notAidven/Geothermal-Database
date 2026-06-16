@@ -26,10 +26,18 @@
       --badge-4g-text: #a04a00;
       --badge-5g: #d0e8ff;
       --badge-5g-text: #0050a0;
+      --badge-gdh: #d5f0e8;
+      --badge-gdh-text: #1a6b4a;
+      --badge-gshp: #e8d5f5;
+      --badge-gshp-text: #5a1a8a;
       --badge-op: #d4edda;
       --badge-op-text: #1a6b35;
-      --badge-dp: #ead5f5;
-      --badge-dp-text: #6030a0;
+      --badge-dp: #d0e8ff;
+      --badge-dp-text: #0050a0;
+      --badge-decom: #f5d5d5;
+      --badge-decom-text: #8a1a1a;
+      --badge-unk: #e8e8e8;
+      --badge-unk-text: #555555;
       --badge-oth: #fde8cc;
       --badge-oth-text: #a04a00;
     }
@@ -215,11 +223,15 @@
       border-radius: 3px;
       white-space: nowrap;
     }
-    .badge-4gdhc    { background: var(--badge-4g);  color: var(--badge-4g-text); }
-    .badge-5gdhc    { background: var(--badge-5g);  color: var(--badge-5g-text); }
-    .badge-operating { background: var(--badge-op); color: var(--badge-op-text); }
-    .badge-design   { background: var(--badge-dp);  color: var(--badge-dp-text); }
-    .badge-other    { background: var(--badge-oth); color: var(--badge-oth-text); }
+    .badge-4gdhc    { background: var(--badge-4g);   color: var(--badge-4g-text); }
+    .badge-5gdhc    { background: var(--badge-5g);   color: var(--badge-5g-text); }
+    .badge-gdh      { background: var(--badge-gdh);  color: var(--badge-gdh-text); }
+    .badge-gshp     { background: var(--badge-gshp); color: var(--badge-gshp-text); }
+    .badge-operating  { background: var(--badge-op);    color: var(--badge-op-text); }
+    .badge-design     { background: var(--badge-dp);    color: var(--badge-dp-text); }
+    .badge-decom      { background: var(--badge-decom); color: var(--badge-decom-text); }
+    .badge-unknown    { background: var(--badge-unk);   color: var(--badge-unk-text); }
+    .badge-other      { background: var(--badge-oth);   color: var(--badge-oth-text); }
 
     /* ── Numeric bar ── */
     .num-cell { display: flex; align-items: center; gap: 8px; }
@@ -551,8 +563,8 @@
 
 <!-- ── Loading overlay ── -->
 <div id="loading" style="text-align:center;padding:80px 20px;color:var(--text-dim)">
-  <div style="font-size:28px;margin-bottom:12px">&#9790;</div>
-  <p style="font-family:'IBM Plex Mono',monospace;font-size:12px">Loading data from Google Sheets…</p>
+  <div style="font-size:28px;margin-bottom:12px">&#9832;</div>
+  <p style="font-family:'IBM Plex Mono',monospace;font-size:12px">Loading geothermal network data…</p>
 </div>
 
 <!-- ── Database page ── -->
@@ -650,16 +662,31 @@ function initFilters() {
 }
 
 function systemBadgeClass(type) {
-  const t = (type || '').trim();
-  if (t === '4GDHC') return 'badge-4gdhc';
-  if (t === '5GDHC') return 'badge-5gdhc';
+  const t = (type || '').toUpperCase();
+  if (t.includes('5GDHC')) return 'badge-5gdhc';
+  if (t.includes('4GDHC')) return 'badge-4gdhc';
+  if (t.includes('GSHP')) return 'badge-gshp';
+  if (t.includes('GDH'))  return 'badge-gdh';
   return 'badge-other';
+}
+
+function systemBadgeLabel(type) {
+  const t = (type || '').toUpperCase();
+  if (t.includes('5GDHC') && t.includes('4GDHC')) return 'GDH/4G&5G';
+  if (t.includes('5GDHC')) return '5GDHC';
+  if (t.includes('4GDHC')) return '4GDHC';
+  if (t.includes('GSHP'))  return 'GSHP';
+  if (t.includes('GDH'))   return 'GDH';
+  return type || '—';
 }
 
 function statusBadgeClass(status) {
   const s = (status || '').toLowerCase();
-  if (s.includes('operating')) return 'badge-operating';
-  if (s.includes('design')) return 'badge-design';
+  if (s.includes('operating'))    return 'badge-operating';
+  if (s.includes('design'))       return 'badge-design';
+  if (s.includes('construction')) return 'badge-design';
+  if (s.includes('decommission')) return 'badge-decom';
+  if (s === 'unknown' || s === '') return 'badge-unknown';
   return 'badge-other';
 }
 
@@ -691,7 +718,7 @@ function render() {
 function renderTable() {
   const tbody = document.getElementById('tbody');
   if (data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-icon">&#9790;</div><p>No projects match the current filters.</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-icon">&#9832;</div><p>No projects match the current filters.</p></div></td></tr>`;
     updateStats(data);
     return;
   }
@@ -705,7 +732,7 @@ function renderTable() {
         <td class="wrap">${r['Project Name'] || '—'}</td>
         <td class="muted">${r['City'] || '—'}</td>
         <td class="mono" style="font-weight:500;color:var(--accent)">${r['State'] || '—'}</td>
-        <td><span class="badge ${systemBadgeClass(r['System Type'])}">${r['System Type'] || '—'}</span></td>
+        <td><span class="badge ${systemBadgeClass(r['System Type'])}">${systemBadgeLabel(r['System Type'])}</span></td>
         <td><span class="badge ${statusBadgeClass(r['Status'])}">${r['Status'] || '—'}</span></td>
         <td class="muted">${r['Site Type'] || '—'}</td>
         <td>
@@ -729,7 +756,7 @@ function renderTable() {
 function renderCards() {
   const grid = document.getElementById('card-grid');
   if (data.length === 0) {
-    grid.innerHTML = `<div class="card-empty"><div class="empty-icon">&#9790;</div><p>No projects match the current filters.</p></div>`;
+    grid.innerHTML = `<div class="card-empty"><div class="empty-icon">&#9832;</div><p>No projects match the current filters.</p></div>`;
     updateStats(data);
     return;
   }
@@ -744,7 +771,7 @@ function renderCards() {
           <div class="card-name">${r['Project Name'] || '—'}</div>
           <div class="card-location">${loc}</div>
         </div>
-        <span class="badge ${systemBadgeClass(r['System Type'])}">${r['System Type'] || '—'}</span>
+        <span class="badge ${systemBadgeClass(r['System Type'])}">${systemBadgeLabel(r['System Type'])}</span>
       </div>
       <hr class="card-divider"/>
       <div class="card-row">
@@ -869,12 +896,40 @@ function parseLine(line) {
   result.push(cur);
   return result;
 }
+
+// Splits CSV text into rows while respecting newlines inside quoted fields
+function splitCSVRows(text) {
+  const rows = [];
+  let row = '';
+  let inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQ && text[i + 1] === '"') { row += '""'; i++; }
+      else { inQ = !inQ; row += ch; }
+    } else if ((ch === '\r' || ch === '\n') && inQ) {
+      row += ' '; // collapse newlines inside quoted fields to a space
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+    } else if (ch === '\r' && text[i + 1] === '\n') {
+      if (row.trim()) { rows.push(row); row = ''; }
+      i++;
+    } else if (ch === '\r' || ch === '\n') {
+      if (row.trim()) { rows.push(row); row = ''; }
+    } else {
+      row += ch;
+    }
+  }
+  if (row.trim()) rows.push(row);
+  return rows;
+}
+
 function parseCSV(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  const headers = parseLine(lines[0]).map(h => h.trim());
+  const rows = splitCSVRows(text);
+  if (!rows.length) return [];
+  const headers = parseLine(rows[0]).map(h => h.trim());
   const validIdx = headers.map((h, i) => h ? i : -1).filter(i => i >= 0);
-  return lines.slice(1).map(line => {
-    const vals = parseLine(line);
+  return rows.slice(1).map(row => {
+    const vals = parseLine(row);
     const obj = {};
     validIdx.forEach(i => { obj[headers[i]] = (vals[i] || '').trim(); });
     return obj;
