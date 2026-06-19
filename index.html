@@ -36,6 +36,8 @@
       --badge-dp-text: #0050a0;
       --badge-decom: #f5d5d5;
       --badge-decom-text: #8a1a1a;
+      --badge-wshp: #cce8e8;
+      --badge-wshp-text: #005a5a;
       --badge-unk: #e8e8e8;
       --badge-unk-text: #555555;
       --badge-oth: #fde8cc;
@@ -227,6 +229,7 @@
     .badge-5gdhc    { background: var(--badge-5g);   color: var(--badge-5g-text); }
     .badge-gdh      { background: var(--badge-gdh);  color: var(--badge-gdh-text); }
     .badge-gshp     { background: var(--badge-gshp); color: var(--badge-gshp-text); }
+    .badge-wshp     { background: var(--badge-wshp); color: var(--badge-wshp-text); }
     .badge-operating  { background: var(--badge-op);    color: var(--badge-op-text); }
     .badge-design     { background: var(--badge-dp);    color: var(--badge-dp-text); }
     .badge-decom      { background: var(--badge-decom); color: var(--badge-decom-text); }
@@ -616,7 +619,7 @@
         <th onclick="sortBy('Project Name')"      data-col="Project Name"       style="width:190px">Project Name      <span class="sort-arrow">↕</span></th>
         <th onclick="sortBy('City')"              data-col="City"               style="width:110px">City              <span class="sort-arrow">↕</span></th>
         <th onclick="sortBy('State')"             data-col="State"              style="width:60px"> State             <span class="sort-arrow">↕</span></th>
-        <th onclick="sortBy('System Type')"       data-col="System Type"        style="width:90px"> System            <span class="sort-arrow">↕</span></th>
+        <th onclick="sortBy('System Type')"       data-col="System Type"        style="width:160px">System Type       <span class="sort-arrow">↕</span></th>
         <th onclick="sortBy('Status')"            data-col="Status"             style="width:120px">Status            <span class="sort-arrow">↕</span></th>
         <th onclick="sortBy('Site Type')"         data-col="Site Type"          style="width:145px">Site Type         <span class="sort-arrow">↕</span></th>
         <th onclick="sortBy('Buildings Connected')" data-col="Buildings Connected" style="width:125px">Buildings       <span class="sort-arrow">↕</span></th>
@@ -662,11 +665,12 @@ function initFilters() {
 }
 
 function systemBadgeClass(type) {
-  switch (type) {
-    case '5GDHC': return 'badge-5gdhc';
+  switch (primarySystemType(type)) {
     case '4GDHC': return 'badge-4gdhc';
+    case '5GDHC': return 'badge-5gdhc';
     case 'GDH':   return 'badge-gdh';
     case 'GSHP':  return 'badge-gshp';
+    case 'WSHP':  return 'badge-wshp';
     default:      return 'badge-unknown';
   }
 }
@@ -888,14 +892,43 @@ function parseLine(line) {
 }
 
 // ── Label normalization (applied at parse time so filters/charts see clean values)
+const SYSTEM_TYPE_MAP = {
+  '4GDHC':                                                   '4GDHC',
+  '5GDHC':                                                   '5GDHC',
+  '5GDHC, closed loop':                                      '5GDHC – Closed Loop',
+  '5GDHC, open loop':                                        '5GDHC – Open Loop',
+  'Combined open and closed loop geothermal network.':       'GDH – Combined Loop',
+  'GDH':                                                     'GDH',
+  'GDH/4GDHC':                                              'GDH + 4GDHC',
+  'Geothermal WSHP system, open loop':                       'WSHP – Open Loop',
+  'GSHP System':                                             'GSHP',
+  'GSHP system':                                             'GSHP',
+  'GSHP system for individual building':                     'GSHP – Individual',
+  'GSHP system for individual building.':                    'GSHP – Individual',
+  'GSHP system for individual building. Closed loop.':       'GSHP – Individual (Closed)',
+  'GSHP system, open loop':                                  'GSHP – Open Loop',
+  'GSHP system, open-loop':                                  'GSHP – Open Loop',
+  'GSHP system.':                                            'GSHP',
+  'GSHP System. Closed loop.':                               'GSHP – Closed Loop',
+  'GSHP system. Closed loop. Horizontal ground loop. BTES.': 'GSHP – Closed Loop',
+  'Individual GSHP':                                         'GSHP – Individual',
+  'Individual GSHP System':                                  'GSHP – Individual',
+  'Networked geothermal: combined closed and open loop':     'GDH – Combined Loop',
+};
+
 function normalizeSystemType(raw) {
-  const t = (raw || '').trim().toUpperCase();
-  if (!t || t === 'UNKNOWN') return 'Unknown';
-  if (t.startsWith('5GDHC')) return '5GDHC';
-  if (t.startsWith('4GDHC')) return '4GDHC';
-  if (t.includes('GDH') || t.includes('COMBINED') || t.includes('NETWORKED')) return 'GDH';
-  if (t.includes('GSHP') || t.includes('WSHP')) return 'GSHP';
-  return raw.trim();
+  const t = (raw || '').trim();
+  if (!t || t.toLowerCase() === 'unknown') return 'Unknown';
+  return SYSTEM_TYPE_MAP[t] || t;
+}
+
+function primarySystemType(normalized) {
+  if ((normalized || '').startsWith('4GDHC')) return '4GDHC';
+  if ((normalized || '').startsWith('5GDHC')) return '5GDHC';
+  if ((normalized || '').startsWith('GDH'))   return 'GDH';
+  if ((normalized || '').startsWith('WSHP'))  return 'WSHP';
+  if ((normalized || '').startsWith('GSHP'))  return 'GSHP';
+  return 'Unknown';
 }
 
 function normalizeStatus(raw) {
@@ -1031,13 +1064,21 @@ function buildOverview() {
   document.getElementById('ov-buildings').textContent = totalBld > 0 ? totalBld : '—';
   document.getElementById('ov-avgcost').textContent  = avgCost > 0 ? '$' + avgCost.toFixed(1) + 'M' : '—';
 
-  // Bar chart: projects by System Type
+  // Bar chart: projects by primary System Type
+  const PRIMARY_COLORS = {
+    '4GDHC': { bg: 'rgba(200,94,26,0.75)',   border: '#c85e1a' },
+    '5GDHC': { bg: 'rgba(0,80,160,0.65)',    border: '#0050a0' },
+    'GDH':   { bg: 'rgba(26,107,74,0.70)',   border: '#1a6b4a' },
+    'GSHP':  { bg: 'rgba(90,26,138,0.65)',   border: '#5a1a8a' },
+    'WSHP':  { bg: 'rgba(0,90,90,0.65)',     border: '#005a5a' },
+    'Unknown': { bg: 'rgba(160,120,88,0.50)', border: '#a07858' },
+  };
   const typeCounts = {};
-  RAW.forEach(r => { const k = r['System Type'] || 'Unknown'; typeCounts[k] = (typeCounts[k] || 0) + 1; });
-  const typeLabels = Object.keys(typeCounts).sort((a, b) => typeCounts[b] - typeCounts[a]);
-  const typeVals   = typeLabels.map(k => typeCounts[k]);
-  const typeColors = typeLabels.map(k => k === '4GDHC' ? 'rgba(200,94,26,0.75)' : k === '5GDHC' ? 'rgba(0,80,160,0.65)' : 'rgba(92,107,122,0.65)');
-  const typeBorders = typeLabels.map(k => k === '4GDHC' ? '#c85e1a' : k === '5GDHC' ? '#0050a0' : '#5c6b7a');
+  RAW.forEach(r => { const k = primarySystemType(r['System Type']); typeCounts[k] = (typeCounts[k] || 0) + 1; });
+  const typeLabels  = Object.keys(typeCounts).sort((a, b) => typeCounts[b] - typeCounts[a]);
+  const typeVals    = typeLabels.map(k => typeCounts[k]);
+  const typeColors  = typeLabels.map(k => (PRIMARY_COLORS[k] || PRIMARY_COLORS['Unknown']).bg);
+  const typeBorders = typeLabels.map(k => (PRIMARY_COLORS[k] || PRIMARY_COLORS['Unknown']).border);
 
   if (typeChart) typeChart.destroy();
   const ctx = document.getElementById('chart-type').getContext('2d');
