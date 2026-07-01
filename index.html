@@ -146,6 +146,23 @@
     }
     .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
 
+    .btn-home {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid var(--border-light);
+      color: var(--text-muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 4px;
+      text-decoration: none;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-home:hover { border-color: var(--accent); color: var(--accent); }
+
     .result-count {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 11px;
@@ -505,6 +522,7 @@
 <body>
 
 <div class="header">
+  <a class="btn-home" href="https://renewable-energy.mit.edu/geothermal-energy-networks" target="_blank" rel="noopener noreferrer">&larr; GEN Homepage</a>
   <div class="header-title">
     <h1>Geothermal Energy Networks Database</h1>
     <p>Community geothermal heating &amp; cooling systems across the U.S.</p>
